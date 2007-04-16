@@ -1,0 +1,13 @@
+Pardus Terminal Server Project TODO
+
+* PTSP server management
+  
+  - client rootfs creation
+
+       - package based or script based ?
+
+  - dhcp, tftp, nfs management
+
+* PTSP client management
+  
+  - PTSP client management GUI

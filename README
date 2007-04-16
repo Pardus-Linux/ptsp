@@ -6,9 +6,10 @@ What is PTSP?
 PTSP aims to create an easy to setup and use thin-client Pardus servers
 with management scripts and graphical user interfaces. 
 
-With pisi, mudur, coolplug and comar tools Pardus has all the infrastructure
-to create an automatically bootable rootfs with its own packages. The 
-management of these packages are all done by Pardus developers.
+With pisi, mudur, coolplug, zorg and comar tools Pardus has all the 
+infrastructure to create an automatically bootable rootfs with its 
+own packages. The management of these packages are all done by Pardus 
+developers.
 
 Why not LTSP?
 

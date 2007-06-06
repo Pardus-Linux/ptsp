@@ -29,3 +29,12 @@ experiment at this point. We're going to try it to see if it works. If it works
 as we hope, it will likely become the basis for the next major release of LTSP. 
 If it doesn't work, well... at least we'll have learned something.
 """
+
+Python where possible
+
+Pardus also mostly uses Python where possible. LTSP uses mostly hackish bash 
+scripts. With zorg, mudur and Comar configurations can be done mostly automatically
+on the clients with standart distribution packages. Comar is also a ready advantage 
+for thin client management, configuration and information gathering needs, which is 
+also an important part of Pardus.
+

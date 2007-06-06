@@ -1,0 +1,22 @@
+2005-09-03 22:09  jam
+
+	* ltspfs.c: Added a note that we need copyright info
+
+2005-09-03 22:07  sbalneav
+
+	* ltspfs.c: Added unused attribues to a couple of parameters
+
+2005-09-03 21:51  sbalneav
+
+	* README, configure.ac, Makefile.am, Makefile.in, aclocal.m4,
+	  config.h.in, AUTHORS, COPYING, ChangeLog, INSTALL, NEWS, compile,
+	  configure, common.c, common.h, depcomp, install-sh, ltspfs.c,
+	  ltspfs.h, missing: Initial import of ltspfs 0.1
+
+2005-09-03 21:51  sbalneav
+
+	* README, configure.ac, Makefile.am, Makefile.in, aclocal.m4,
+	  config.h.in, AUTHORS, COPYING, ChangeLog, INSTALL, NEWS, compile,
+	  configure, common.c, common.h, depcomp, install-sh, ltspfs.c,
+	  ltspfs.h, missing: Initial revision
+

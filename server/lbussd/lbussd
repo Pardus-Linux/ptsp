@@ -1,0 +1,365 @@
+#!/usr/bin/perl -w
+#
+# lbussd - copyright 2006 - James McQuillan <jam@Ltsp.org>
+#
+# lbussd is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# lbussd is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with the GNU C Library; if not, write to the Free
+# Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# 02111-1307 USA.
+#
+#
+# Client
+#
+#  1) Connect to the Server daemon
+#  2) Send a 'Register' message
+#  3) Send a 'EnumerateDevices' message
+#  4) Listen for responses
+#  5) React to some of the messages by running shell scripts
+#
+
+use strict;
+use IO::Socket;
+use IO::Select;
+use POSIX;
+use X11::Protocol;
+
+$| = 1;
+
+my @pwflds   = getpwuid( $> );
+my $uid      = $pwflds[2];
+my $username = $pwflds[0];
+my $homedir  = $pwflds[7];
+
+my @Devices;
+
+my $server_ip_addr = $ENV{DISPLAY};
+$server_ip_addr    =~ s/:.*$//;
+
+my $global_options = '/etc/lbus.conf';
+my $user_options   = '~/.lbusrc';
+
+#
+# Setup some default parameters
+#
+my %options = ( server_port  => 9202,
+                fifo_name    => '~/.lbus_fifo',
+                event_script => '/usr/sbin/lbus_event_handler.sh',
+              );
+
+load_options( $global_options, \%options );
+load_options( $user_options,   \%options );
+
+my $server         = "$server_ip_addr:" . $options{server_port};
+my $fpath          = transform_filename( $options{fifo_name} );
+my $event_script   = transform_filename( $options{event_script} );
+
+unless( -p $fpath ){
+  if( -e $fpath ){
+    unlink($fpath);
+  }
+  mkfifo($fpath,0666) or die "Unable to make the fifo: $!\n";
+}
+
+my $fifo;
+
+my $main_sock = IO::Socket::INET->new( $server )
+	or die("Couldn't establish a connection to $server: $@\n");
+
+fcntl( $main_sock, F_SETFL(), O_NONBLOCK() );
+
+sysopen( $fifo, $fpath, O_RDONLY | O_NONBLOCK )
+        or die "Unable to open $fpath: $!\n";
+printf("fifo opened, fd: %d\n", fileno($fifo));
+
+my $message_id  = 0;
+
+my $readable_handles = new IO::Select();
+
+$readable_handles->add( $main_sock );
+$readable_handles->add( $fifo );
+
+#
+# Send the Register message
+#
+
+printf("Sending:  Register\n");
+print $main_sock sprintf( "Register|%d|%d|%s\n",
+                                $message_id++,
+                                $uid,
+                                $username );
+
+printf("Sending:  EnumerateDevices\n");
+print $main_sock sprintf( "EnumerateDevices|%d\n", $message_id++ );
+
+
+printf("Starting the loop...\n");
+
+printf("listening on: %d\n", fileno($main_sock));
+
+my $total_bytes = "";
+
+clear_mounts();             # Start with a clean slate
+
+while( 1 ){
+  my $new_readable;
+  my $timeout = 5;
+
+  ( $new_readable ) = IO::Select->select( $readable_handles,
+                                          undef,
+                                          undef,
+                                          $timeout );
+
+  if( defined( $new_readable ) ){
+    foreach my $sock ( @$new_readable ){
+      if( $sock == $fifo ){
+        my $bytes = <$sock>;
+        if($bytes){
+          $bytes =~ s/\r//g;   # Get rid of that pesky Carriage Return
+          foreach my $line ( split /\n/, $bytes ){
+            if( $line ){
+              process_event( $line );
+            }
+          }
+        }
+        else{
+          $readable_handles->remove($sock);
+          close($sock);
+          sysopen( $fifo, $fpath, O_RDONLY | O_NONBLOCK )
+                  or die "Unable to open $fpath: $!\n";
+          $readable_handles->add($fifo);
+          printf("Listening on: %d\n", fileno($fifo));
+        }
+      }
+      else{
+        #
+        # Keep reading until we get no more bytes.  The packets seem to
+        # come in at a length of 52 bytes
+        #
+        my $bytes = <$sock>;            # Prime the pump
+        if( $bytes ){
+          $total_bytes .= $bytes;
+          while( $bytes = <$sock> ){
+            $total_bytes .= $bytes;
+          }
+          if( $total_bytes =~ m/\n$/ ){
+            $total_bytes =~ s/\r//g;   # Get rid of that pesky Carriage Return
+            foreach my $line ( split /\n/, $total_bytes ){
+              if( $line ){
+                process_message($line, fileno($sock));
+              }
+            }
+            $total_bytes = "";
+          }
+        }
+        else{
+          die( "Select said there were bytes, but there weren't any!\n" );
+        }
+      }
+    }
+  }
+
+  #
+  # Let's make sure the DISPLAY is still alive
+  # If not, then it must be gone, and we need to exit.
+  #
+  eval {
+    my $x = X11::Protocol->new();
+  };
+  if( $@ ){
+    printf("DISPLAY has gone away, time to exit this loop\n");
+    last;
+  }
+}
+
+clear_mounts();               # Make sure we clean up after ourselves
+
+#------------------------------------------------------------------------------
+#
+# clear_mounts() will remove any old mounts and icons that are left over.
+# This is useful if the users session terminated abruptly, leaving mounts
+# lying around.
+#
+sub clear_mounts {
+  eval {
+    system( sprintf("%s %s", $event_script, "removeall" ));
+  };
+  if( $@ ){
+    printf("event script failed: $@\n");
+  }
+}
+
+#------------------------------------------------------------------------------
+
+sub process_event {
+  my $event = shift;
+
+  my $messagetype;
+  my @args;
+
+  ( $messagetype, @args ) = split /\|/, $event;
+ 
+  printf("event: [%s], messagetpe: [%s]\n", $event, $messagetype );
+
+  if( $messagetype =~ /^AddBlockDevice$/i ){
+    AddBlockDevice( \@args );
+  }
+  if( $messagetype =~ /^RemoveDevice$/i ){
+    RemoveDevice( \@args );
+  }
+}
+
+#------------------------------------------------------------------------------
+
+sub process_message {
+  my $event = shift;
+  my $fileno  = shift;
+
+  my $messagetype;
+  my @args;
+
+  ( $messagetype, @args ) = split /\|/, $event;
+ 
+  printf("event: [%s], messagetpe: [%s]\n", $event, $messagetype );
+
+  if( $messagetype =~ /^AddBlockDevice$/i ){
+    AddBlockDevice( \@args );
+  }
+  if( $messagetype =~ /^RemoveDevice$/i ){
+    RemoveDevice( \@args );
+  }
+}
+
+#------------------------------------------------------------------------------
+#
+# On a AddBlockDevice message, we are expecting to get the following fields:
+#
+# 0) MessageID
+# 1) DevID
+# 2) ShareName
+# 3) RemoveableMedia
+# 4) Size
+# 5) Description
+#
+sub AddBlockDevice {
+  my $args = shift;
+
+  my %dev;
+  $dev{sharename}        = $args->[2];
+  $dev{removeable}       = $args->[3];
+  $dev{size}             = $args->[4];
+  $dev{desc}             = $args->[5];
+  $dev{type}             = 'block';
+
+  my $device_id          = $args->[1];
+
+  $Devices[$device_id] = \%dev;
+
+printf("Saved:\n");
+printf("   device_id: %s\n", $device_id );
+printf("   sharename: %s\n", $dev{sharename} );
+printf("  removeable: %s\n", $dev{removeable} );
+printf("        size: %s\n", $dev{size} );
+printf("        desc: %s\n", $dev{desc} );
+printf("        type: %s\n", $dev{type} );
+
+  printf("About to run $event_script\n");
+
+  eval {
+    system( sprintf("%s %s %s %s %d \"%s\"", $event_script,
+                       "add", "block", $args->[2], $args->[4], $args->[5] ));
+  };
+  if( $@ ){
+    printf("event script failed: $@\n");
+  }
+
+}
+
+#------------------------------------------------------------------------------
+#
+# On a RemoveDevice message, we are expecting to get the following fields:
+#
+# 0) MessageID
+# 1) DevID
+#
+
+sub RemoveDevice {
+  my $args = shift;
+
+  my $devid = $args->[1];
+
+  my $dev = $Devices[$devid];
+
+  printf("About to run $event_script\n");
+
+  eval {
+    system( sprintf( "%s %s %s %s %d '%s'", $event_script,
+                 "remove", $dev->{type}, $dev->{sharename},
+                 $dev->{size}, $dev->{desc}));
+  };
+  if( $@ ){
+    printf("event script failed: $@\n");
+  }
+
+  $Devices[$devid] = undef;
+}
+
+#------------------------------------------------------------------------------
+
+sub transform_filename {
+  my $filename = shift;
+
+  my $homedir = $ENV{HOME};
+
+  $filename =~ s/^~/$homedir/;
+
+  return( $filename );
+}
+
+#------------------------------------------------------------------------------
+
+sub load_options {
+  my $option_file = shift;
+  my $options     = shift;
+
+  my $pathname    = transform_filename( $option_file );
+
+  if( -f $pathname ){
+    open(OPTIONS,"<$pathname") or die "Unable to open $pathname: $!\n";
+    while( <OPTIONS> ){
+      chomp;
+      $_ =~ s/\s*#.*$//;       # Remove comments
+      next if /^$/;            # Skip empty lines;
+
+      my( $keyword, $value ) = split /\s*=\s*/, $_;
+
+      if( defined( $value ) ){
+        trim($keyword);
+        trim($value);
+        $options->{$keyword} = $value;
+      }
+    }
+    close(OPTIONS);
+  }
+}
+
+#------------------------------------------------------------------------------
+#
+# Trim leading and trailing whitespace from a string.
+#
+sub trim {
+  return '' if( ! defined $_[0] );
+  $_[0] =~ s/^\s*//;
+  $_[0] =~ s/\s*$//;
+  return($_[0]);
+}
+

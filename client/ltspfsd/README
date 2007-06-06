@@ -1,0 +1,2 @@
+Much thanks to Petter Reinholdtsen (pere in the #ltsp channel) for pointing me 
+at the vsyslog and vfprintf functions used in info().

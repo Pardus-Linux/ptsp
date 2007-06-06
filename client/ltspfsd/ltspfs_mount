@@ -1,0 +1,13 @@
+#!/bin/sh
+[ -n "$1" ] || {
+    echo "Usage: $0 <mount point>"
+	exit 1
+}
+
+# ltspfs_mount, passed a directory name, used in /etc/fstab.
+grep "$1" /tmp/fstab | while read DEV MOUNTPOINT TYPE OPTIONS DUMP PASS; do
+   if [ ! -d ${MOUNTPOINT} ]; then
+	   mkdir ${MOUNTPOINT}
+   fi
+   mount -t ${TYPE} -o ${OPTIONS} ${DEV} ${MOUNTPOINT}
+done

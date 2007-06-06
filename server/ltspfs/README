@@ -1,0 +1,220 @@
+  LTSPFS - The LTSP FileSystem
+
+Introduction:
+
+ltspfs will be a remote filesystem consisting of two parts: a network server that will run on the LTSP client. On the server, a FUSE filesystem will enable the server to see removable media devices on the client.
+
+The goals of ltspfs are:
+
+   1. Provide a lightweight file access mechanism that will be feasable on lower end hardware.
+   2. Provide a stateless file access method that will feature "atomic" reads and writes to minimize impact from client network disruptions.
+   3. Provide a filesystem that doesn't end up leaving a bunch of "dead" mounts on the server machine.
+
+Todo:
+
+   1. Pick a TCP port number. lp-server uses 910[1-3], ltspinfod uses 9200, lbus uses 9202
+   2. Authentication We'll use the same model as mtools
+   3. Added debugging option to the client side daemon, to prevent it from forking into background and also to display some info as it runs
+   4. Log stuff via syslog (mounts and such) Done
+   5. clean up the autoconf stuff Partially done
+   6. separate the client from the server, as they should be separate packages Done
+   7. Add a cmdline option to set read-only or read-write Done
+   8. Make sure disconnects are handled properly. The daemon should go back to listening for the next connection. Done
+   9. Pass the name of the directory that we want to export Done
+
+The Spec:
+
+The following is a thumbnail view of the functional spec. The on-the-wire protocol will be ASCII based, except for the actual reading and writing of the datablocks, which will be in binary.
+
+Initial Command:
+
+These commands must be run before any subsequent commands.
+
+MOUNT
+
+    * First command sent to the daemon.
+    * Mount command causes the daemon to chroot() to the mounted directory, and setuid() to the user nobody
+    * Format: MOUNT|/dir
+          o Example: MOUNT|/tmp/drives
+
+Stateless functions required by fuse:
+
+ltspfs_getattr:
+
+    * static int ltspfs_getattr(const char *path, struct stat *stbuf)
+    * returns 0 on success, -errno on error.
+    * Gets file attributes.
+    * Populate the stat buf based on attributes of file
+    * daemon protocol:
+          o query: GETATTR|[path]
+          o response: 000|[st_dev]|[st_ino]|[st_mode]|[st_nlink]|[st_uid]|[st_gid]|[st_rdev]|[st_size]|[st_blksize]|[st_blocks]|[st_atime]|[st_mtime]|[st_ctime]
+          o response: 001|[errno] if error
+
+ltspfs_readlink:
+
+    * static int ltspfs_readlink(const char *path, char *buf, size_t size)
+    * returns 0 on success, -errno on error.
+    * use readlink function to read the destinantion of the link, and place the result in *buf, with size (size - 1)
+    * daemon protocol:
+          o query: READLINK|[path]
+          o response: 000|[resultpath]
+          o response: 001|[errno] if error.
+
+ltspfs_readdir:
+
+    * static int ltspfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi)
+    * returns directory listing. Needs some inode information from the dirent structure. Needed fields: d_ino, d_type, d_name.
+    * daemon protocol:
+          o query: READDIR|[path]
+          o response: 100|[d_ino]|[d_type]|[d_name]
+          o Continued responses until the last response: 000 on last line if ok.
+          o response: 001|[errno] if error.
+
+ltspfs_mknod:
+
+    * static int ltspfs_mknod(const char *path, mode_t mode, dev_t rdev)
+    * create a device node using the mknod call.
+    * daemon protocol:
+          o query: MKNOD|[mode]|[rdev]|[path]
+          o response: 000 if ok.
+          o response: 001|[errno] if error.
+
+ltspfs_mkdir:
+
+    * static int ltspfs_mkdir(const char *path, mode_t mode)
+    * Create a directory.
+    * daemon protocol:
+          o query: MKDIR|[mode]|[path]
+          o response: 000 if ok.
+          o response: 001|[errno] if error.
+
+ltspfs_symlink:
+
+    * static int ltspfs_symlink(const char *from, const char *to)
+    * create a symlink using symlink function call.
+    * daemon protocol:
+          o query: SYMLINK|[from]|[to]
+          o response: 000 if ok.
+          o response: 001|[errno] if error.
+
+ltspfs_unlink:
+
+    * static int ltspfs_unlink(const char *path)
+    * Remove a file.
+    * daemon protocol:
+          o query: UNLINK|[path]
+          o response: 000 if ok.
+          o response: 001|[errno] if error.
+
+ltspfs_rmdir:
+
+    * static int ltspfs_rmdir(const char *path)
+    * Remove a directory.
+    * daemon protocol:
+          o query: RMDIR|[path]
+          o response: 000 if ok.
+          o response: 001|[errno] if error.
+
+ltspfs_rename:
+
+    * static int ltspfs_rename(const char *from, const char *to)
+    * rename a file.
+    * daemon protocol:
+          o query: RENAME|[from]|[to]
+          o response: 000 if ok.
+          o response: 001|[errno] if error.
+
+ltspfs_link:
+
+    * static int ltspfs_link(const char *from, const char *to)
+    * create a hard link
+    * daemon protocol:
+          o query: LINK|[from]|[to]
+          o response: 000 if ok.
+          o response: 001|[errno] if error.
+
+ltspfs_chmod:
+
+    * static int ltspfs_chmod(const char *path, mode_t mode)
+    * chmod a file.
+    * daemon protocol:
+          o query: CHMOD|[mode]|[path]
+          o response: 000 if ok.
+          o response: 001|[errno] if error.
+
+ltspfs_chown:
+
+    * static int ltspfs_chown(const char *path, uid_t uid, gid_t gid)
+    * chown a file
+    * daemon protocol:
+          o query: CHMOD|[uid]|[gid]|[path]
+          o response: 000 if ok.
+          o response: 001|[errno] if error.
+
+ltspfs_truncate:
+
+    * static int ltspfs_truncate(const char *path, off_t size)
+    * truncate a file to a given size using the truncate system call.
+    * daemon protocol:
+          o query: TRUNCATE|[offset]|[path]
+          o response: 000 if ok.
+          o response: 001|[errno] if error.
+
+ltspfs_utime:
+
+    * static int ltspfs_utime(const char *path, struct utimbuf *buf)
+    * Change access times on a file. Need access time and mod time.
+    * daemon protocol:
+          o query: UTIME|[actime]|[modtime]|[path]
+          o response: 000 if ok.
+          o response: 001|[errno] if error.
+
+ltspfs_statfs:
+
+    * static int ltspfs_statfs(const char *path, struct statfs *stbuf)
+    * Populates the statfs buffer. See statfs function call for details.
+    * daemon protocol:
+          o query: STATFS|[path]
+          o response: 000|[f_type]|[f_bsize]|[f_blocks]|[f_bfree]|[f_bavail]|[f_files]|[f_ffree]|[f_fsid]|[f_namelen] if ok.
+          o response: 001|[errno] if error.
+
+Stateful function calls:
+
+ltspfs_open:
+
+    * static int ltspfs_open(const char *path, struct fuse_file_info *fi)
+    * Stateless. Just opens the file to see if it can be opened. Then closes it immediately. No state is needed to be maintained int the protocol.
+    * daemon protocol:
+          o query: OPEN|[flags]|[path]
+          o response: 000 if ok.
+          o response: 001|[errno] if error.
+
+ltspfs_read:
+
+    * static int ltspfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
+    * Stateless read from a file. Opens file, reads size bytes at position offset, into buffer buf, from file at path. Then closes the file.
+    * Changed wire protocol to FREAD so that we don't have a name collision with READKINK or READDIR
+    * daemon protocol:
+          o query: FREAD|[size]|[offset]|[path]
+          o response: 000|[size]|[big blob of crud] if ok.
+          o response: 001|[errno] if error.
+
+ltspfs_write:
+
+    * static int ltspfs_write(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
+    * Stateless write to a file. Opens file, writes size bytes at position offset, from buffer buf, to file at path. Then closes the file.
+    * daemon protocol:
+          o query: WRITE|[size]|[offset]|[path]\\n[big blob of crud]
+          o response: 000 if ok.
+          o response: 001|[errno] if error.
+
+ltspfs_release:
+
+    * static int ltspfs_release(const char *path, struct fuse_file_info *fi)
+    * Since our reads and writes are stateless, this call does nothing.
+
+ltspfs_rsync:
+
+    * static int ltspfs_rsync(const char *path, int isdatasync, struct fuse_file_info *fi)
+    * Since our reads and writes are stateless, this call does nothing.
+

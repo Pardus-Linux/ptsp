@@ -1,0 +1,107 @@
+The 'lbus' is a network channel created between the LTSP client and the
+session running on the server.  It's a way of passing device events
+from the thin client to the server session, so that cool things will
+happen, like icons appearing on the desktop when a USB Memory stick
+is plugged in.
+
+There's 2 ends to the connection:
+
+   lbuscd  - Runs on the LTSP client and receives events from udev and
+             also accepts connections from the server session.
+             When a new device event is received, a message will be
+             sent through the network connection to the server.
+
+   lbussd  - Runs on the server for each user.  As device events happen
+             on the client, messages will be sent up the network to
+             this program, and it will call a shell script to create
+             the Icon on the screen, and start the "ltspfs" FUSE mount
+             back to the client.
+
+
+lbuscd will receive it's events via a fifo called /tmp/lbus.fifo.
+
+The following fifo messages are allowed by lbuscd:
+
+    AddBlockDevice   This will add a new block device, and send a
+                     message up to the server.
+
+         Format:   AddBlockDevice|sharename|blockdev|Removeable|size|desc
+         Example:  AddBlockDevice|/tmp/usbdrive|/dev/hde1|0|1024000|MiniCruiser
+
+    AddCDRomDRive    This will add a new CDRom device, and begin
+                     polling the CDRom drive for media insertions
+                     and removals.  When the state of the media changes,
+                     a message will be sent up to the server, so that
+                     an Icon can be created or removed from the screen.
+
+         Format:   AddCDRomDrive|sharename|blockdev|desc
+         Example:  AddCDRomDrive|/tmp/cd|/dev/hdc|CDRom drive
+
+    RemoveDevice     This will send a removal message up to the server,
+                     so that the icon can be removed, and then the
+                     device will be removed from the lbus system.
+
+         Format:   RemoveDevice|sharename
+         Example:  RemoveDevice|/tmp/cd
+
+    DumpDevices      This is for debugging the lbus subsystem. It will
+                     cause the internal Devices table to be dumped to
+                     stderr.  This is really only useful when lbuscd
+                     is started in debugging mode with the '--debug'
+                     flag.
+
+         Format:   DumpDevices
+         Example:  DumpDevices
+
+lbuscd will receive messages from the server session by listening
+on port 9202.  The following messages are accepted:
+
+    Register         This is how the session will register itself with
+                     the lbuscd, to begin receiving device events.
+
+         Format:  Register|msgid|userid|username
+         Example: Register|1|500|jam
+
+    EnumerateDevices This is used to get a list of devices currently
+                     connected to the thin client.  This is particularly
+                     handy for devices that are plugged in before the user
+                     logs in.
+
+         Format:  EnumerateDevices
+         Example: EnumerateDevices
+
+-------------------------------------------------------------------------------
+
+Testing:
+
+You can test lbuscd by running it from the command line and echoing commands
+to the fifo.  Also, you can connect to lbuscd using telnet on port 9202.
+
+ 1) Start lbuscd in debugging mode:
+
+    ./lbuscd --debug
+
+ 2) Connect up through telnet to register yourself to receive events
+
+   telnet 127.0.0.1 9202
+   Register|1|500|jam
+
+ 3) Send messages to the fifo:
+
+  Add a cdrom drive:
+
+    echo "AddCDRomDrive|/tmp/cd|/dev/hdc|CDRom Drive" >/tmp/lbus.fifo
+
+  Add a USB Memory stick:
+
+    echo "AddBlockDevice|/tmp/memstick|0|1024000|Mini Cruizer" >/tmp/lbus.fifo
+
+  Remove a device:
+
+    echo "RemoveDevice|/tmp/cd" >/tmp/lbus.fifo
+
+
+It is possible to have more than one connection open on port 9202.  This is
+very helpful for watching the event stream between a thin client and a
+server session.  Just telnet into port 9202, register, and watch the messages.
+

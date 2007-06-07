@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2006, TUBITAK/UEKAE
+# Copyright (C) 2007, TUBITAK/UEKAE
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -150,7 +150,7 @@ if __name__ == "__main__":
 
     if not output_dir:
         usage()
-        print "\nPtsp client rootfs output directory is must be specified..."
+        print "\nPtsp client rootfs output directory must be specified..."
         sys.exit(1)
 
     create_ptsp_rootfs(output_dir, repository, add_pkgs)

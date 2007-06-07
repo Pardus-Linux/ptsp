@@ -18,7 +18,10 @@ import time
 import socket
 import getopt
 
-PACKAGES = ["xorg-server", "ptsp-client"]
+# ptsp-client with dependencies lbuscd and ltspfs are needed.
+# they are currently in playground. So we build and install them
+# with --additional parameter.
+PACKAGES = ["xorg-server"]
 COMPONENTS = ["system.base"]
 
 # start comar in chroot

@@ -62,11 +62,11 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
     
         # Install default packages
         for package in PACKAGES:
-            run('pisi --yes-all --ignore-comar --ignore-file-conflicts -D"%s" it %s' % package)
+            run('pisi --yes-all --ignore-comar --ignore-file-conflicts -D"%s" it %s' % (output_dir, package))
 
         # Install additional packages
         for package in add_pkgs:
-            run('pisi --yes-all --ignore-comar --ignore-file-conflicts -D"%s" it %s' % package)
+            run('pisi --yes-all --ignore-comar --ignore-file-conflicts -D"%s" it %s' % (output_dir, package))
 
         # Create /etc from baselayout
         path = "%s/usr/share/baselayout/" % output_dir

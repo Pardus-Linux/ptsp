@@ -1,3 +1,8 @@
+2007-06-07 Version 0.0.2
+        
+        * Initial build-client.py added
+        * missing ltsp_mount and lstp_umount scripts added to client/ltpsfsd
+
 2007-04-16 Version 0.0.1
         
         * Initial ptsp archive

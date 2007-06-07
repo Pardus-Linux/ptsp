@@ -1,0 +1,6 @@
+[Desktop Entry]
+Encoding=UTF-8
+Exec=lbus-start
+Type=Application
+StartupNotify=False
+

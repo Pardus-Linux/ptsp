@@ -1,0 +1,14 @@
+
+#
+# First, clean up any previously dead lbussd's hanging around.
+#
+
+if [ "${DISPLAY}" != ":0.0" ]; then
+
+  for pid in `ps -u ${USER} | grep lbussd | awk '{print $1}'`; do
+    kill ${pid}
+  done
+
+  exec /usr/sbin/lbussd > ${HOME}/.lbussd.out &
+
+fi

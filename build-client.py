@@ -32,10 +32,9 @@ def chroot_comar(image_dir):
         sys.exit(0)
 
     # wait comar to start
-    if stream:
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    else:
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    timeout = 5
+    wait = 0.1
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     while timeout > 0:
         try:
             sock.connect(unix_name)

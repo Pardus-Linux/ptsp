@@ -85,7 +85,7 @@ case "${ACTION}" in
       DESC=$5
       case "${DEVTYPE}" in
           block)  mkdir "${HOME}/${DRIVEDIR}/${SHARENAME}"
-                  /usr/sbin/ltspfs ${WS}:/tmp/drives/${SHARENAME} \
+                  /usr/bin/ltspfs ${WS}:/tmp/drives/${SHARENAME} \
                                    "${HOME}/${DRIVEDIR}/${SHARENAME}"
                   if [ -d ${HOME}/Desktop ]; then
                     create_icon "${DESC}" "${SHARENAME}" \

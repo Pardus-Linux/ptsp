@@ -12,11 +12,53 @@
 import os
 import shutil
 import subprocess
-import stat
 import sys
 import time
 import socket
 import getopt
+
+default_exclude_list = """
+lib/rcscripts/
+usr/include/
+usr/lib/cups/
+usr/lib/python2.4/lib-tk/
+usr/lib/python2.4/idlelib/
+usr/lib/python2.4/distutils/
+usr/lib/python2.4/bsddb/test/
+usr/lib/python2.4/lib-old/
+usr/lib/python2.4/test/
+usr/lib/klibc/include/
+usr/qt/3/include/
+usr/qt/3/mkspecs/
+usr/qt/3/bin/
+usr/qt/3/templates/
+usr/share/aclocal/
+usr/share/cups/
+usr/share/doc/
+usr/share/info/
+usr/share/sip/
+usr/share/man/
+var/db/pisi/
+var/lib/pisi/
+var/cache/pisi/packages/
+var/cache/pisi/archives/
+var/tmp/pisi/
+tmp/pisi-root/
+var/log/comar.log
+var/log/pisi.log
+root/.bash_history
+"""
+
+default_glob_excludes = (
+    ( "usr/lib/python2.4/", "*.pyc" ),
+    ( "usr/lib/python2.4/", "*.pyo" ),
+    ( "usr/lib/", "*.a" ),
+    ( "usr/lib/", "*.la" ),
+    ( "lib/", "*.a" ),
+    ( "lib/", "*.la" ),
+    ( "var/db/comar/", "__db*" ),
+    ( "var/db/comar/", "log.*" ),
+)
 
 # ptsp-client with dependencies lbuscd and ltspfs are needed.
 # they are currently in playground. So we build and install them
@@ -37,7 +79,7 @@ def chroot_comar(image_dir):
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     while timeout > 0:
         try:
-            sock.connect(unix_name)
+            sock.connect("%s/var/run/comar.socket" % image_dir)
             return True
         except:
             timeout -= wait
@@ -52,6 +94,22 @@ def run(cmd, ignore_error=False):
         print "%s returned %s" % (cmd, ret)
         sys.exit(1)
 
+def get_exclude_list(output_dir):
+    import fnmatch
+       
+    temp = default_exclude_list.split()
+    for exc in default_glob_excludes:
+        path = os.path.join(output_dir, exc[0])
+        for root, dirs, files in os.walk(path):
+            for name in files:
+                if fnmatch.fnmatch(name, exc[1]):
+                    temp.append(os.path.join(root[len(output_dir)+1:], name))
+    return temp
+
+def shrink_rootfs(output_dir):
+    excludes = get_exclude_list(output_dir)
+    for x in excludes:
+       os.system("rm -rf %s/%s" % (output_dir, x))
 
 def create_ptsp_rootfs(output_dir, repository, add_pkgs):
     try:
@@ -102,7 +160,7 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         
         file(os.path.join(output_dir, "etc/pardus-release"), "w").write("Pardus 2007\n")
 
-        chrun("/usr/bin/pisi delete-cache")
+        shrink_rootfs(output_dir)
 
         # devices will be created in postinstall of ptsp-server
         os.unlink("%s/dev/null" % output_dir)

@@ -151,8 +151,10 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         chrun("/sbin/update-environment")
         chroot_comar(output_dir)
 
+        chrun("/usr/bin/pisi cp  baselayout")
+        chrun("/usr/bin/pisi cp")
         chrun("/usr/bin/hav call baselayout User.Manager setUser 0 'Root' '/root' '/bin/bash' 'pardus' '' ")
-        chrun("/usr/bin/pisi configure-pending")
+        
         
         # create root
         chrun("hav call User.Manager.setUser uid 0 password pardus")

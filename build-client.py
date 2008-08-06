@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 import sys
+import stat
 import time
 import socket
 import getopt

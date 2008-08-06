@@ -156,9 +156,8 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         chrun("/usr/bin/hav call baselayout User.Manager setUser 0 'Root' '/root' '/bin/bash' 'pardus' '' ")
         
         
-        # create root
-        chrun("hav call User.Manager.setUser uid 0 password pardus")
-
+        # create symbolic link
+        run("ln -s %s/boot/kernel* %s/boot/latestkernel" % (output_dir, output_dir))
         suffix = os.readlink("%s/boot/latestkernel" % output_dir).split("kernel-")[1]
         chrun("/sbin/depmod -a %s" % suffix)
         

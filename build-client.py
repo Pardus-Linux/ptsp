@@ -138,6 +138,10 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         path2 = "%s/etc" % output_dir
         for name in os.listdir(path):
             run('cp -p "%s" "%s"' % (os.path.join(path, name), os.path.join(path2, name)))
+        
+        #create character device
+        os.mknod("%s/dev/null" % output_dir, 0666 | stat.S_IFCHR, os.makedev(1, 3))
+        os.mknod("%s/dev/console" % output_dir, 0666 | stat.S_IFCHR, os.makedev(5, 1))
 
         # Use proc and sys of the current system
         run('/bin/mount --bind /proc %s/proc' % output_dir)

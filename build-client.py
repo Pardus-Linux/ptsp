@@ -66,11 +66,16 @@ default_glob_excludes = (
 PACKAGES = ["xorg-server"]
 COMPONENTS = ["system.base"]
 
-# start comar in chroot
 def chroot_comar(image_dir):
     if os.fork() == 0:
+        try:
+            os.makedirs(os.path.join(image_dir, "var/db"), 0700)
+        except OSError:
+            pass
         os.chroot(image_dir)
-        subprocess.call(["/usr/bin/comar"])
+        if not os.path.exists("/var/lib/dbus/machine-id"):
+            run("/usr/bin/dbus-uuidgen --ensure")
+        run("/sbin/start-stop-daemon -b --start --pidfile /var/run/dbus/pid --exec /usr/bin/dbus-daemon -- --system")
         sys.exit(0)
 
     # wait comar to start
@@ -79,7 +84,7 @@ def chroot_comar(image_dir):
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     while timeout > 0:
         try:
-            sock.connect("%s/var/run/comar.socket" % image_dir)
+            sock.connect("%s/var/run/dbus/system_bus_socket" % image_dir)
             return True
         except:
             timeout -= wait

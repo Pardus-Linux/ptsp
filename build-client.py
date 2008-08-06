@@ -150,7 +150,8 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         chrun("/sbin/ldconfig")
         chrun("/sbin/update-environment")
         chroot_comar(output_dir)
-        chrun("/usr/bin/hav call-package System.Package.postInstall baselayout")
+
+        chrun("/usr/bin/hav call baselayout User.Manager setUser 0 'Root' '/root' '/bin/bash' 'pardus' '' ")
         chrun("/usr/bin/pisi configure-pending")
         
         # create root

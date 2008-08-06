@@ -156,10 +156,6 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         # create root
         chrun("hav call User.Manager.setUser uid 0 password pardus")
 
-        chrun("/usr/bin/comar --stop")
-        
-        chrun("/sbin/update-modules")
-
         suffix = os.readlink("%s/boot/latestkernel" % output_dir).split("kernel-")[1]
         chrun("/sbin/depmod -a %s" % suffix)
         

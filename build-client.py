@@ -166,7 +166,7 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         suffix = os.readlink("%s/boot/latestkernel" % output_dir).split("kernel-")[1]
         chrun("/sbin/depmod -a %s" % suffix)
         
-        file(os.path.join(output_dir, "etc/pardus-release"), "w").write("Pardus 2007\n")
+        file(os.path.join(output_dir, "etc/pardus-release"), "w").write("Pardus 2008\n")
 
         shrink_rootfs(output_dir)
 
@@ -198,7 +198,7 @@ if __name__ == "__main__":
         usage()
         sys.exit(2)
 
-    repository = "http://paketler.pardus.org.tr/pardus-2007/pisi-index.xml.bz2"
+    repository = "http://paketler.pardus.org.tr/pardus-2008/pisi-index.xml.bz2"
     output_dir = None
     add_pkgs   = []
 

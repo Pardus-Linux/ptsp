@@ -171,6 +171,7 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         shrink_rootfs(output_dir)
 
         # devices will be created in postinstall of ptsp-server
+        os.unlink("%s/dev/console" % output_dir)
         os.unlink("%s/dev/null" % output_dir)
         shutil.rmtree("%s/lib/udev/devices" % output_dir)
 

@@ -64,7 +64,7 @@ default_glob_excludes = (
 # ptsp-client with dependencies lbuscd and ltspfs are needed.
 # they are currently in playground. So we build and install them
 # with --additional parameter.
-PACKAGES = ["xorg-server"]
+PACKAGES = ["xorg-server", "zorg", "acpid"]
 COMPONENTS = ["system.base"]
 
 def chroot_comar(image_dir):

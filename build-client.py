@@ -64,7 +64,7 @@ default_glob_excludes = (
 # ptsp-client with dependencies lbuscd and ltspfs are needed.
 # they are currently in playground. So we build and install them
 # with --additional parameter.
-PACKAGES = ["xorg-server", "zorg", "acpid", "pulseaudio"]
+PACKAGES = ["xorg-server", "zorg", "acpid", "pulseaudio", "alsa-driver", "alsa-firmware"]
 COMPONENTS = ["system.base"]
 
 def chroot_comar(image_dir):
@@ -160,10 +160,10 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         chrun("/usr/bin/pisi cp")
         chrun("/usr/bin/hav call baselayout User.Manager setUser 0 'Root' '/root' '/bin/bash' 'pardus' '' ")
         
-	#We must create 'pulse' user for pulseaudio --system
-	#chrun("/usr/bin/hav call baselayout User.Manager addGroup 500 'pulse' '' ")
-	#chrun("/usr/bin/hav call baselayout User.Manager addUser 1500 'pulse' 'Pulse' '/var/run/pulse' '/bin/false' '' 'pulse' '' '' ")
-        
+	    #We must create 'pulse' user for pulseaudio --system
+        #chrun("/usr/bin/hav call baselayout User.Manager addGroup 500 'pulse' ")
+        #chrun("/usr/bin/hav call baselayout User.Manager addUser 1500 'pulse' 'Pulse' '/var/run/pulse' '/bin/false' '' '' '' '' ")
+        #chrun("gpasswd -a root pulse")
         # create symbolic link
         run("ln -s %s/boot/kernel* %s/boot/latestkernel" % (output_dir, output_dir))
         suffix = os.readlink("%s/boot/latestkernel" % output_dir).split("kernel-")[1]

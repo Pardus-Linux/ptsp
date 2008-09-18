@@ -160,10 +160,11 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         chrun("/usr/bin/pisi cp")
         chrun("/usr/bin/hav call baselayout User.Manager setUser 0 'Root' '/root' '/bin/bash' 'pardus' '' ")
         
-	    #We must create 'pulse' user for pulseaudio --system
-        #chrun("/usr/bin/hav call baselayout User.Manager addGroup 500 'pulse' ")
-        #chrun("/usr/bin/hav call baselayout User.Manager addUser 1500 'pulse' 'Pulse' '/var/run/pulse' '/bin/false' '' '' '' '' ")
-        #chrun("gpasswd -a root pulse")
+        # We must create 'pulse' user to run pulseaudio as system wide daemon
+        chrun("/usr/sbin/groupadd pulse")
+        chrun("/usr/sbin/useradd -d /var/run/pulse -g pulse pulse")
+        chrun("/usr/bin/gpasswd -a pulse audio")
+
         # create symbolic link
         run("ln -s %s/boot/kernel* %s/boot/latestkernel" % (output_dir, output_dir))
         suffix = os.readlink("%s/boot/latestkernel" % output_dir).split("kernel-")[1]

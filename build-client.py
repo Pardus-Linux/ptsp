@@ -61,10 +61,7 @@ default_glob_excludes = (
     ( "var/db/comar/", "log.*" ),
 )
 
-# ptsp-client with dependencies lbuscd and ltspfs are needed.
-# they are currently in playground. So we build and install them
-# with --additional parameter.
-PACKAGES = ["xorg-server", "zorg", "acpid", "pulseaudio", "alsa-driver", "alsa-firmware"]
+PACKAGES = ["lbuscd", "ltspfsd", "ptsp-client", "xorg-server", "zorg", "acpid", "pulseaudio", "alsa-driver", "alsa-firmware"]
 COMPONENTS = ["system.base"]
 
 def chroot_comar(image_dir):

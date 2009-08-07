@@ -1,3 +1,5 @@
+#ifndef BUILD-CLIENT.PY
+#define BUILD-CLIENT.PY
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 #
@@ -60,8 +62,9 @@ default_glob_excludes = (
     ( "var/db/comar/", "__db*" ),
     ( "var/db/comar/", "log.*" ),
 )
-
-PACKAGES = ["lbuscd", "ltspfsd", "ptsp-client", "xorg-server", "zorg", "acpid", "pulseaudio", "alsa-driver", "alsa-firmware"]
+#not all the listed packages are in the repo yet, so we need pack them manually and give these packages to the script with -a command.
+#PACKAGES = ["lbuscd", "ltspfsd", "ptsp-client", "xorg-server", "zorg", "acpid", "pulseaudio", "alsa-driver", "alsa-firmware"]
+PACKAGES = [ "xorg-server", "zorg", "acpid", "pulseaudio","module-alsa-driver","alsa-firmware"]
 COMPONENTS = ["system.base"]
 
 def chroot_comar(image_dir):
@@ -140,6 +143,8 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         #create character device
         os.mknod("%s/dev/null" % output_dir, 0666 | stat.S_IFCHR, os.makedev(1, 3))
         os.mknod("%s/dev/console" % output_dir, 0666 | stat.S_IFCHR, os.makedev(5, 1))
+        #in previous script, looks for an urandom device and can not find any. Try to add it manually.
+        os.mknod("%s/dev/urandom" % output_dir, 0666 | stat.S_IFCHR, os.makedev(1, 9))
 
         # Use proc and sys of the current system
         run('/bin/mount --bind /proc %s/proc' % output_dir)
@@ -167,7 +172,9 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         suffix = os.readlink("%s/boot/latestkernel" % output_dir).split("kernel-")[1]
         chrun("/sbin/depmod -a %s" % suffix)
         
-        file(os.path.join(output_dir, "etc/pardus-release"), "w").write("Pardus 2008\n")
+        #now it is 2009 release
+        #file(os.path.join(output_dir, "etc/pardus-release"), "w").write("Pardus 2008\n")
+        file(os.path.join(output_dir, "etc/pardus-release"), "w").write("Pardus 2009\n")
 
         shrink_rootfs(output_dir)
 
@@ -200,7 +207,8 @@ if __name__ == "__main__":
         usage()
         sys.exit(2)
 
-    repository = "http://paketler.pardus.org.tr/pardus-2008/pisi-index.xml.bz2"
+    #repository = "http://paketler.pardus.org.tr/pardus-2008/pisi-index.xml.bz2"
+    repository= "http://paketler.pardus.org.tr/pardus-2009-test/pisi-index.xml.bz2"
     output_dir = None
     add_pkgs   = []
 
@@ -225,3 +233,4 @@ if __name__ == "__main__":
 
     create_ptsp_rootfs(output_dir, repository, add_pkgs)
     
+#endif // BUILD-CLIENT.PY

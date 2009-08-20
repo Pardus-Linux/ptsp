@@ -1,5 +1,3 @@
-#ifndef BUILD-CLIENT.PY
-#define BUILD-CLIENT.PY
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 #
@@ -24,48 +22,47 @@ default_exclude_list = """
 lib/rcscripts/
 usr/include/
 usr/lib/cups/
-usr/lib/python2.4/lib-tk/
-usr/lib/python2.4/idlelib/
-usr/lib/python2.4/distutils/
-usr/lib/python2.4/bsddb/test/
-usr/lib/python2.4/lib-old/
-usr/lib/python2.4/test/
+usr/lib/python2.6/lib-tk/
+usr/lib/python2.6/bsddb/test/
+usr/lib/python2.6/lib-old/
+usr/lib/python2.6/test/
 usr/lib/klibc/include/
-usr/qt/3/include/
-usr/qt/3/mkspecs/
-usr/qt/3/bin/
-usr/qt/3/templates/
+usr/qt/4/include/
+usr/qt/4/mkspecs/
+usr/qt/4/bin/
 usr/share/aclocal/
 usr/share/cups/
 usr/share/doc/
 usr/share/info/
 usr/share/sip/
 usr/share/man/
-var/db/pisi/
 var/lib/pisi/
 var/cache/pisi/packages/
 var/cache/pisi/archives/
-var/tmp/pisi/
 tmp/pisi-root/
-var/log/comar.log
 var/log/pisi.log
 root/.bash_history
 """
 
+# Remove *.pyc files under /var/db/comar3/scripts as they prevent starting of system services
 default_glob_excludes = (
-    ( "usr/lib/python2.4/", "*.pyc" ),
-    ( "usr/lib/python2.4/", "*.pyo" ),
+    ( "var/db/comar3/", "*.pyc"),
+    ( "usr/lib/python2.6/", "*.pyc" ),
+    ( "usr/lib/python2.6/", "*.pyo" ),
     ( "usr/lib/", "*.a" ),
     ( "usr/lib/", "*.la" ),
     ( "lib/", "*.a" ),
     ( "lib/", "*.la" ),
-    ( "var/db/comar/", "__db*" ),
-    ( "var/db/comar/", "log.*" ),
 )
-#not all the listed packages are in the repo yet, so we need pack them manually and give these packages to the script with -a command.
-#PACKAGES = ["lbuscd", "ltspfsd", "ptsp-client", "xorg-server", "zorg", "acpid", "pulseaudio", "alsa-driver", "alsa-firmware"]
-PACKAGES = [ "xorg-server", "zorg", "acpid", "pulseaudio","module-alsa-driver","alsa-firmware"]
-COMPONENTS = ["system.base"]
+
+
+PACKAGES = ["lbuscd", "ltspfsd", "ptsp-client", "xorg-server", "zorg", "acpid", "pulseaudio", "module-alsa-driver", "alsa-firmware"]
+
+# Install x11 drivers and hardware firmwares with system base components
+COMPONENTS = ["system.base","x11.driver","hardware.firmware"]
+
+# Exclude NVidia drivers for now on. Some ATI components could be added here in the future for exclusion
+PACKAGE_EXCLUDES = ["xorg-video-nvidia*"]
 
 def chroot_comar(image_dir):
     if os.fork() == 0:
@@ -102,7 +99,7 @@ def run(cmd, ignore_error=False):
 
 def get_exclude_list(output_dir):
     import fnmatch
-       
+
     temp = default_exclude_list.split()
     for exc in default_glob_excludes:
         path = os.path.join(output_dir, exc[0])
@@ -122,10 +119,10 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         # Add repository of the packages
         run('pisi --yes-all --destdir="%s" add-repo pardus %s' % (output_dir, repository))
 
-        # Install default components
-        for component in COMPONENTS:
-            run('pisi --yes-all --ignore-comar --ignore-file-conflicts -D"%s" it -c %s' % (output_dir, component))
-    
+        # Install default components, considiring exclusions
+        for component,exclude in [(x,y) for x in COMPONENTS for y in PACKAGE_EXCLUDES]:
+                run('pisi --yes-all --ignore-comar --ignore-file-conflicts -D"%s" it -c %s -x %s' % (output_dir, component, exclude))
+
         # Install default packages
         for package in PACKAGES:
             run('pisi --yes-all --ignore-comar --ignore-file-conflicts -D"%s" it %s' % (output_dir, package))
@@ -139,11 +136,12 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         path2 = "%s/etc" % output_dir
         for name in os.listdir(path):
             run('cp -p "%s" "%s"' % (os.path.join(path, name), os.path.join(path2, name)))
-        
-        #create character device
+
+        # Create character device
         os.mknod("%s/dev/null" % output_dir, 0666 | stat.S_IFCHR, os.makedev(1, 3))
         os.mknod("%s/dev/console" % output_dir, 0666 | stat.S_IFCHR, os.makedev(5, 1))
-        #in previous script, looks for an urandom device and can not find any. Try to add it manually.
+
+        # Create urandom character device
         os.mknod("%s/dev/urandom" % output_dir, 0666 | stat.S_IFCHR, os.makedev(1, 9))
 
         # Use proc and sys of the current system
@@ -153,7 +151,7 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         # run command in chroot
         def chrun(cmd):
             run('chroot "%s" %s' % (output_dir, cmd))
-        
+
         chrun("/sbin/ldconfig")
         chrun("/sbin/update-environment")
         chroot_comar(output_dir)
@@ -161,26 +159,35 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         chrun("/usr/bin/pisi cp  baselayout")
         chrun("/usr/bin/pisi cp")
         chrun("/usr/bin/hav call baselayout User.Manager setUser 0 'Root' '/root' '/bin/bash' 'pardus' '' ")
-        
-        # We must create 'pulse' user to run pulseaudio as system wide daemon
-        chrun("/usr/sbin/groupadd pulse")
-        chrun("/usr/sbin/useradd -d /var/run/pulse -g pulse pulse")
-        chrun("/usr/bin/gpasswd -a pulse audio")
 
-        # create symbolic link
+        # If not existing, we must create 'pulse' user to run pulseaudio as system wide daemon
+        pulseExists = False
+        groups = os.popen("cut -d %s -f1 %s" %(":","/etc/passwd"))
+        for group in groups.readlines():
+            if (group.split()[0] == "pulse"):
+                pulseExists = True
+                break
+        if not pulseExists :
+            chrun("/usr/sbin/groupadd pulse")
+            chrun("/usr/sbin/useradd -d /var/run/pulse -g pulse pulse")
+            chrun("/usr/bin/gpasswd -a pulse audio")
+
+
+        # Create symbolic link
         run("ln -s %s/boot/kernel* %s/boot/latestkernel" % (output_dir, output_dir))
         suffix = os.readlink("%s/boot/latestkernel" % output_dir).split("kernel-")[1]
         chrun("/sbin/depmod -a %s" % suffix)
-        
-        #now it is 2009 release
-        #file(os.path.join(output_dir, "etc/pardus-release"), "w").write("Pardus 2008\n")
+
+        # Now it is 2009 release
         file(os.path.join(output_dir, "etc/pardus-release"), "w").write("Pardus 2009\n")
 
         shrink_rootfs(output_dir)
 
-        # devices will be created in postinstall of ptsp-server
+        # Devices will be created in postinstall of ptsp-server
         os.unlink("%s/dev/console" % output_dir)
         os.unlink("%s/dev/null" % output_dir)
+        os.unlink("%s/dev/urandom" % output_dir)
+
         shutil.rmtree("%s/lib/udev/devices" % output_dir)
 
         run('umount %s/proc' % output_dir)
@@ -207,8 +214,7 @@ if __name__ == "__main__":
         usage()
         sys.exit(2)
 
-    #repository = "http://paketler.pardus.org.tr/pardus-2008/pisi-index.xml.bz2"
-    repository= "http://paketler.pardus.org.tr/pardus-2009-test/pisi-index.xml.bz2"
+    repository = "http://paketler.pardus.org.tr/pardus-2009-test/pisi-index.xml.bz2" 
     output_dir = None
     add_pkgs   = []
 
@@ -232,5 +238,3 @@ if __name__ == "__main__":
         sys.exit(1)
 
     create_ptsp_rootfs(output_dir, repository, add_pkgs)
-    
-#endif // BUILD-CLIENT.PY

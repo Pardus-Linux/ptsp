@@ -36,9 +36,9 @@ usr/share/doc/
 usr/share/info/
 usr/share/sip/
 usr/share/man/
-var/lib/pisi/
 var/cache/pisi/packages/
 var/cache/pisi/archives/
+var/lib/pisi/
 tmp/pisi-root/
 var/log/pisi.log
 root/.bash_history
@@ -56,7 +56,22 @@ default_glob_excludes = (
 )
 
 
-PACKAGES = ["lbuscd", "ltspfsd", "ptsp-client", "xorg-server", "zorg", "acpid", "pulseaudio", "module-alsa-driver", "alsa-firmware"]
+PACKAGES = """
+lbuscd
+ltspfsd
+ptsp-client
+xorg-server
+zorg
+acpid
+pulseaudio
+module-alsa-driver
+alsa-firmware
+firefox
+mplayer
+module-uvcvideo
+module-uvcvideo-userspace
+xorg-font
+"""
 
 # Install x11 drivers and hardware firmwares with system base components
 COMPONENTS = ["system.base","x11.driver","hardware.firmware"]
@@ -124,7 +139,7 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
                 run('pisi --yes-all --ignore-comar --ignore-file-conflicts -D"%s" it -c %s -x %s' % (output_dir, component, exclude))
 
         # Install default packages
-        for package in PACKAGES:
+        for package in PACKAGES.split():
             run('pisi --yes-all --ignore-comar --ignore-file-conflicts -D"%s" it %s' % (output_dir, package))
 
         # Install additional packages

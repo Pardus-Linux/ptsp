@@ -36,6 +36,7 @@ usr/share/doc/
 usr/share/info/
 usr/share/sip/
 usr/share/man/
+var/db/pisi/
 var/cache/pisi/packages/
 var/cache/pisi/archives/
 var/lib/pisi/

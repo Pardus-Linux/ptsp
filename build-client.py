@@ -226,7 +226,7 @@ if __name__ == "__main__":
         usage()
         sys.exit(2)
 
-    repository = "http://paketler.pardus.org.tr/pardus-2009-test/pisi-index.xml.bz2" 
+    repository = "http://paketler.pardus.org.tr/pardus-2009/pisi-index.xml.bz2"
     output_dir = None
     add_pkgs   = []
 

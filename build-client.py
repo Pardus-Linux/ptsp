@@ -67,15 +67,11 @@ acpid
 pulseaudio
 module-alsa-driver
 alsa-firmware
-firefox
-mplayer
-module-uvcvideo
-module-uvcvideo-userspace
 xorg-font
 """
 
 # Install x11 drivers and hardware firmwares with system base components
-COMPONENTS = ["system.base","x11.driver","hardware.firmware"]
+COMPONENTS = ["system.base","x11.driver"]
 
 # Exclude NVidia drivers for now on. Some ATI components could be added here in the future for exclusion
 PACKAGE_EXCLUDES = ["xorg-video-nvidia*"]

@@ -66,6 +66,7 @@ zorg
 acpid
 pulseaudio
 module-alsa-driver
+alsa-utils
 alsa-firmware
 xorg-font
 """

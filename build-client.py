@@ -74,8 +74,8 @@ xorg-font
 # Install x11 drivers and hardware firmwares with system base components
 COMPONENTS = ["system.base","x11.driver"]
 
-# Exclude NVidia drivers for now on. Some ATI components could be added here in the future for exclusion
-PACKAGE_EXCLUDES = ["xorg-video-nvidia*"]
+# Exclude proprietary drivers
+PACKAGE_EXCLUDES = ["*-video", "xorg-video-fglrx", "xorg-video-nvidia*"]
 
 def chroot_comar(image_dir):
     if os.fork() == 0:

@@ -10,13 +10,14 @@
 #
 
 import os
-import shutil
-import subprocess
 import sys
+import glob
 import stat
 import time
-import socket
 import getopt
+import shutil
+import socket
+import subprocess
 
 default_exclude_list = """
 lib/rcscripts/
@@ -37,8 +38,7 @@ usr/share/info/
 usr/share/sip/
 usr/share/man/
 var/db/pisi/
-var/cache/pisi/packages/
-var/cache/pisi/archives/
+var/cache/pisi
 var/lib/pisi/
 tmp/pisi-root/
 var/log/pisi.log
@@ -191,8 +191,9 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
 
 
         # Create symbolic link
-        run("ln -s %s/boot/kernel* %s/boot/latestkernel" % (output_dir, output_dir))
-        suffix = os.readlink("%s/boot/latestkernel" % output_dir).split("kernel-")[1]
+        kernel_image = glob.glob1("%s/boot" % output_dir, "kernel-*")[0]
+        run("ln -s %s %s/boot/latestkernel" % (kernel_image, output_dir))
+        suffix = kernel_image.split("-", 1)[1]
         chrun("/sbin/depmod -a %s" % suffix)
 
         # Now it is 2009 release

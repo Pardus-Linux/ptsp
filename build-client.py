@@ -72,7 +72,7 @@ xorg-font
 """
 
 # Install x11 drivers and hardware firmwares with system base components
-COMPONENTS = ["system.base","x11.driver"]
+COMPONENTS = ["system.base", "x11.driver"]
 
 # Exclude proprietary drivers
 PACKAGE_EXCLUDES = ["*-video", "xorg-video-fglrx", "xorg-video-nvidia*"]
@@ -133,8 +133,12 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         run('pisi --yes-all --destdir="%s" add-repo pardus %s' % (output_dir, repository))
 
         # Install default components, considiring exclusions
-        for component,exclude in [(x,y) for x in COMPONENTS for y in PACKAGE_EXCLUDES]:
-                run('pisi --yes-all --ignore-comar --ignore-file-conflicts -D"%s" it -c %s -x %s' % (output_dir, component, exclude))
+        install_cmd = "pisi --yes-all --ignore-comar --ignore-file-conflicts -D'%s' install" % output_dir
+        for component in COMPONENTS:
+            install_cmd += " -c %s" % component
+        for pattern in PACKAGE_EXCLUDES:
+            install_cmd += " -x %s" % pattern
+        run(install_cmd)
 
         # Install default packages
         for package in PACKAGES.split():

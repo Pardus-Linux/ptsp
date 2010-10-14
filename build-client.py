@@ -110,6 +110,22 @@ def run(cmd, ignore_error=False):
         print "%s returned %s" % (cmd, ret)
         sys.exit(1)
 
+def chroot_call(image_dir, func, *args):
+    if os.fork() == 0:
+        try:
+            os.chroot(image_dir)
+            func()
+            #chrun("/usr/bin/hav call baselayout User.Manager setUser 0 'Root' '/root' '/bin/bash' 'pardus' '' ")
+        except OSError:
+            pass
+        sys.exit(0)
+
+def set_root_password():
+    import comar
+
+    link = comar.Link()
+    link.User.Manager["baselayout"].setUser(0, "Root", "/root", "/bin/bash/", "pardus", [])
+
 def get_exclude_list(output_dir):
     import fnmatch
 
@@ -175,7 +191,8 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
 
         chrun("/usr/bin/pisi cp  baselayout")
         chrun("/usr/bin/pisi cp")
-        chrun("/usr/bin/hav call baselayout User.Manager setUser 0 'Root' '/root' '/bin/bash' 'pardus' '' ")
+        chroot_call(output_dir, set_root_password)
+        #chrun("/usr/bin/hav call baselayout User.Manager setUser 0 'Root' '/root' '/bin/bash' 'pardus' '' ")
 
         # If not existing, we must create 'pulse' user to run pulseaudio as system wide daemon
         pulseExists = False
@@ -196,8 +213,8 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         suffix = kernel_image.split("-", 1)[1]
         chrun("/sbin/depmod -a %s" % suffix)
 
-        # Now it is 2009 release
-        file(os.path.join(output_dir, "etc/pardus-release"), "w").write("Pardus 2009\n")
+        # Now it is Corporate2 release
+        file(os.path.join(output_dir, "etc/pardus-release"), "w").write("Pardus Corporate 2\n")
 
         shrink_rootfs(output_dir)
 
@@ -232,7 +249,7 @@ if __name__ == "__main__":
         usage()
         sys.exit(2)
 
-    repository = "http://paketler.pardus.org.tr/pardus-2009/pisi-index.xml.bz2"
+    repository = "http://paketler.pardus.org.tr/corporate2/pisi-index.xml.bz2"
     output_dir = None
     add_pkgs   = []
 

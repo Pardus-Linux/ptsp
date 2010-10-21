@@ -115,7 +115,6 @@ def chroot_call(image_dir, func, *args):
         try:
             os.chroot(image_dir)
             func()
-            #chrun("/usr/bin/hav call baselayout User.Manager setUser 0 'Root' '/root' '/bin/bash' 'pardus' '' ")
         except OSError:
             pass
         sys.exit(0)
@@ -125,6 +124,13 @@ def set_root_password():
 
     link = comar.Link()
     link.User.Manager["baselayout"].setUser(0, "Root", "/root", "/bin/bash/", "pardus", [])
+
+def make_initramfs():
+    import glob
+
+    kernel_image = glob.glob1("/boot", "kernel-*")[0]
+    suffix = kernel_image.split("-", 1)[1]
+    os.system("/sbin/mkinitramfs --network --kernel=%s" % suffix)
 
 def get_exclude_list(output_dir):
     import fnmatch
@@ -189,6 +195,7 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         chrun("/sbin/update-environment")
         chroot_comar(output_dir)
 
+        chrun("/bin/service dbus start")
         chrun("/usr/bin/pisi cp  baselayout")
         chrun("/usr/bin/pisi cp")
         chroot_call(output_dir, set_root_password)
@@ -206,10 +213,12 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
             chrun("/usr/sbin/useradd -d /var/run/pulse -g pulse pulse")
             chrun("/usr/bin/gpasswd -a pulse audio")
 
-
+        chroot_call(output_dir, make_initramfs)
         # Create symbolic link
         kernel_image = glob.glob1("%s/boot" % output_dir, "kernel-*")[0]
+        initramfs = glob.glob1("%s/boot" % output_dir, "initramfs-*")[0]
         run("ln -s %s %s/boot/latestkernel" % (kernel_image, output_dir))
+        run("ln -s %s %s/boot/latestinitramfs" % (initramfs, output_dir))
         suffix = kernel_image.split("-", 1)[1]
         chrun("/sbin/depmod -a %s" % suffix)
 

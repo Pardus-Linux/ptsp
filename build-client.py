@@ -149,6 +149,25 @@ def shrink_rootfs(output_dir):
     for x in excludes:
        os.system("rm -rf %s/%s" % (output_dir, x))
 
+def group_add(image_dir, group_name):
+    """ Check whether given group exists in the chroot, if not add with regarding options."""
+
+    import grp
+    if os.fork() == 0:
+        try:
+            os.chroot(image_dir)
+
+            if (grp.getgrnam(group_name)):
+                pass
+        except KeyError:
+            run("/usr/sbin/groupadd %s" % group_name)
+            if (group_name == "pulse"):
+                run("/usr/sbin/useradd -d /var/run/pulse -g pulse pulse")
+                run("/usr/bin/gpasswd -a pulse audio")
+        except OSError:
+            pass
+        sys.exit(0)
+
 def create_ptsp_rootfs(output_dir, repository, add_pkgs):
     try:
         # Add repository of the packages
@@ -199,30 +218,13 @@ def create_ptsp_rootfs(output_dir, repository, add_pkgs):
         chrun("/usr/bin/pisi cp  baselayout")
         chrun("/usr/bin/pisi cp")
         chroot_call(output_dir, set_root_password)
-        #chrun("/usr/bin/hav call baselayout User.Manager setUser 0 'Root' '/root' '/bin/bash' 'pardus' '' ")
 
         # If not existing, we must create 'pulse' user to run pulseaudio as system wide daemon
-        pulseExists = False
-        groups = os.popen("cut -d %s -f1 %s" %(":","/etc/passwd"))
-        for group in groups.readlines():
-            if (group.split()[0] == "pulse"):
-                pulseExists = True
-                break
-        if not pulseExists :
-            chrun("/usr/sbin/groupadd pulse")
-            chrun("/usr/sbin/useradd -d /var/run/pulse -g pulse pulse")
-            chrun("/usr/bin/gpasswd -a pulse audio")
+        group_add(output_dir, "pulse")
 
         # Create fuse group to get rid of localdev problems when using ldap users.
         # Also added a new udev rule (65-fuse.rules) to ptsp-client package to update /dev/fuse permissions regarding this change.
-        fuseExists = False
-        groups = os.popen("cut -d %s -f1 %s" %(":","/etc/passwd"))
-        for group in groups.readlines():
-            if (group.split()[0] == "fuse"):
-                fuseExists = True
-                break
-        if not fuseExists :
-            chrun("/usr/sbin/groupadd fuse")
+        group_add(output_dir, "fuse")
 
         chroot_call(output_dir, make_initramfs)
         # Create symbolic link

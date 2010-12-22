@@ -64,10 +64,9 @@ ptsp-client
 xorg-server
 zorg
 acpid
-pulseaudio
 module-alsa-driver
-alsa-utils
-alsa-firmware
+alsa-plugins-pulseaudio
+alsa-plugins
 xorg-font
 """
 
